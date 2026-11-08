@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network Chat App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- 1. LOGIN SCREEN -->
+  <div id="login-screen" class="centered-container">
+    <div class="card">
+      <h2>Join Chat Room</h2>
+      <p class="subtitle">Socket.IO Network Chat</p>
+      
+      <form id="login-form">
+        <label for="username-input">Choose a Unique Username</label>
+        <input type="text" id="username-input" placeholder="e.g. Alice" autofocus />
+        <div id="login-error" class="error-msg hidden"></div>
+        <button type="submit" id="login-btn">Enter Chat</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. MAIN CHAT DASHBOARD -->
+  <div id="chat-dashboard" class="dashboard-container hidden">
+    <!-- Sidebar: Connected Users -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>Online Directory</h3>
+        <span id="user-count" class="badge">0 online</span>
+      </div>
+
+      <ul id="user-list" class="user-list">
+        <!-- User items will be rendered here dynamically -->
+      </ul>
+
+      <!-- Footer: User status & Logout -->
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <span class="user-avatar" id="my-avatar">?</span>
+          <span id="my-username">Username</span>
+        </div>
+        <button id="logout-btn" title="Log out">Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Window (Ready for Issue #3) -->
+    <main class="chat-main">
+      <div class="empty-state">
+        <p>Select a user or group to start chatting</p>
+        <small>Next Milestone: 1-on-1 Private Messaging (Issue #3)</small>
+      </div>
+    </main>
+  </div>
+
+  <!-- Load Socket.IO automatically from the server -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
