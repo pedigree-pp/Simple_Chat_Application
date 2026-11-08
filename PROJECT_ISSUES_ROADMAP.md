@@ -13,9 +13,9 @@ Track your progress for the **Simple Chat Application** project.
 ---
 
 ### Phase 2: User Identity & Group Messaging
-- [ ] **Issue #2:** [Implement Unique Username Registration & Active User Directory](https://github.com/pedigree-pp/SimpleChatApplication/issues/2)
-  - [ ] Unique username check with rejection on duplicate.
-  - [ ] Live directory of all connected clients (including self `(You)`).
+- [x] **Issue #2:** [Implement Unique Username Registration & Active User Directory](https://github.com/pedigree-pp/SimpleChatApplication/issues/2)
+  - [x] Unique username check with rejection on duplicate.
+  - [x] Live directory of all connected clients (including self `(You)`).
 - [ ] **Issue #3:** [Implement 1-on-1 Private Messaging & Dedicated Chat Rooms](https://github.com/pedigree-pp/SimpleChatApplication/issues/3)
   - [ ] Dedicated chat room for 1-on-1 private messaging.
   - [ ] Split-pane UI with active chat box and scrolling message window.
