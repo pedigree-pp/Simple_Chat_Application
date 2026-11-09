@@ -77,7 +77,7 @@ io.on('connection',(socket)=>{
         }
 
         // Generate deterministic room ID
-        const roomId = getPrivateRoomId(socket.username,targetUsername);
+        const roomId = getPrivateRoomId(username,targetUsername);
 
         // Join both client sockets into this isolated room
         socket.join(roomId);
@@ -116,7 +116,6 @@ io.on('connection',(socket)=>{
 
         callback?.({ success: true });
     });
-
 
     socket.on('disconnect', () => {
         if(users.has(socket.id)){
