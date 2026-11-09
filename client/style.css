@@ -1,3 +1,6 @@
+/* ==========================================================================
+   GLOBAL RESET & BASE THEME
+   ========================================================================== */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,17 +9,20 @@
 }
 
 body {
-  background-color: #0f172a;
+  background-color: #0f172a; /* Slate 900 */
   color: #f8fafc;
   height: 100vh;
   overflow: hidden;
 }
 
+/* Utility to toggle element visibility across screens */
 .hidden {
   display: none !important;
 }
 
-/* --- LOGIN SCREEN --- */
+/* ==========================================================================
+   ISSUE #2 (R3): LOGIN SCREEN STYLING
+   ========================================================================== */
 .centered-container {
   display: flex;
   align-items: center;
@@ -32,7 +38,7 @@ body {
   padding: 2rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
 .card h2 {
@@ -62,10 +68,12 @@ input[type="text"] {
   color: #fff;
   font-size: 1rem;
   margin-bottom: 1rem;
+  transition: border-color 0.2s;
 }
 
 input[type="text"]:focus {
-  outline: 2px solid #6366f1;
+  outline: none;
+  border-color: #6366f1; /* Indigo focus ring */
 }
 
 button {
@@ -84,6 +92,7 @@ button:hover {
   background: #4f46e5;
 }
 
+/* Duplicate / Validation rejection alert */
 .error-msg {
   background: rgba(239, 68, 68, 0.2);
   border: 1px solid #ef4444;
@@ -94,23 +103,24 @@ button:hover {
   margin-bottom: 1rem;
 }
 
-/* --- DASHBOARD --- */
+/* ==========================================================================
+   ISSUE #2 (R4): LEFT SIDEBAR - LIVE DIRECTORY OF USERS
+   ========================================================================== */
 .dashboard-container {
   display: flex;
   height: 100vh;
 }
 
 .sidebar {
-  width: 280px;
+  width: 300px;
   background: #1e293b;
   border-right: 1px solid #334155;
   display: flex;
-  flex-col: column;
   flex-direction: column;
 }
 
 .sidebar-header {
-  padding: 1rem;
+  padding: 1.25rem 1rem;
   border-bottom: 1px solid #334155;
   display: flex;
   justify-content: space-between;
@@ -120,7 +130,7 @@ button:hover {
 .badge {
   background: rgba(99, 102, 241, 0.2);
   color: #a5b4fc;
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.6rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-family: monospace;
@@ -129,34 +139,56 @@ button:hover {
 .user-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0.5rem;
+  padding: 0.75rem 0.5rem;
   list-style: none;
 }
 
+/* Individual User Item in Directory */
 .user-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
 }
 
+/* Issue #3: Other peers are interactive / clickable to trigger private room */
+.user-item:not(.is-me) {
+  cursor: pointer;
+}
+
+.user-item:not(.is-me):hover {
+  background: #334155;
+}
+
+/* Highlight currently selected chat partner */
+.user-item.active {
+  background: rgba(99, 102, 241, 0.25);
+  border: 1px solid #6366f1;
+}
+
+/* Current user self tag (You) */
 .user-item.is-me {
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  cursor: default;
 }
 
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   background: #334155;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: bold;
+  color: #cbd5e1;
+  flex-shrink: 0;
 }
 
 .sidebar-footer {
@@ -165,6 +197,13 @@ button:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
 }
 
 .sidebar-footer button {
@@ -178,15 +217,154 @@ button:hover {
   background: #ef4444;
 }
 
+/* ==========================================================================
+   ISSUE #3 (R6): RIGHT PANE - DEDICATED CHAT WORKSPACE
+   ========================================================================== */
 .chat-main {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  position: relative;
+  height: 100vh;
+}
+
+/* 1. Empty State (When no room is selected) */
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: #64748b;
+  padding: 2rem;
+}
+
+.empty-icon {
+  font-size: 3.5rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.6;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  margin-bottom: 0.35rem;
+}
+
+.empty-state small {
+  color: #64748b;
+}
+
+/* 2. Active Chat Container */
+.active-chat-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Top bar showing active conversation metadata */
+.chat-header {
+  padding: 0.85rem 1.5rem;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+}
+
+.chat-header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chat-header h4 {
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.status-indicator {
+  font-size: 0.75rem;
+  color: #10b981;
+}
+
+/* ==========================================================================
+   ISSUE #3 (R6, R7): MESSAGE FEED & BUBBLE ROUTING
+   ========================================================================== */
+.message-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Base message container */
+.message {
+  max-width: 65%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Outgoing messages sent by currentUser -> Align Right */
+.message.my-message {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.message.my-message .bubble {
+  background: #6366f1;
+  color: #ffffff;
+  border-radius: 14px 14px 2px 14px;
+}
+
+/* Incoming messages received from peer -> Align Left */
+.message.other-message {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.message.other-message .bubble {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 14px 14px 14px 2px;
+}
+
+.bubble {
+  padding: 0.65rem 1rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.message-meta {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+  padding: 0 0.25rem;
+}
+
+/* ==========================================================================
+   ISSUE #3 (R6): BOTTOM CHAT INPUT BAR
+   ========================================================================== */
+.chat-input-form {
+  padding: 1rem 1.5rem;
+  background: #1e293b;
+  border-top: 1px solid #334155;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.chat-input-form input {
+  flex: 1;
+  margin-bottom: 0;
+  padding: 0.8rem 1rem;
   background: #0f172a;
 }
 
-.empty-state {
-  text-align: center;
-  color: #64748b;
+.chat-input-form button {
+  width: auto;
+  padding: 0.8rem 1.5rem;
 }

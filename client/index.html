@@ -8,35 +8,45 @@
 </head>
 <body>
 
-  <!-- 1. LOGIN SCREEN -->
+  <!-- ===================================================================== -->
+  <!-- ISSUE #2 (R3): LOGIN SCREEN (Username Registration)                  -->
+  <!-- ===================================================================== -->
   <div id="login-screen" class="centered-container">
     <div class="card">
       <h2>Join Chat Room</h2>
       <p class="subtitle">Socket.IO Network Chat</p>
       
+      <!-- Submits username to server via 'register_username' event -->
       <form id="login-form">
         <label for="username-input">Choose a Unique Username</label>
         <input type="text" id="username-input" placeholder="e.g. Alice" autofocus />
+        <!-- Displays duplicate/invalid rejection error from server -->
         <div id="login-error" class="error-msg hidden"></div>
         <button type="submit" id="login-btn">Enter Chat</button>
       </form>
     </div>
   </div>
 
-  <!-- 2. MAIN CHAT DASHBOARD -->
+  <!-- ===================================================================== -->
+  <!-- ISSUE #2 & ISSUE #3: MAIN SPLIT-PANE DASHBOARD CONTAINER              -->
+  <!-- ===================================================================== -->
   <div id="chat-dashboard" class="dashboard-container hidden">
-    <!-- Sidebar: Connected Users -->
+
+    <!-- ----------------------------------------------------------------- -->
+    <!-- LEFT PANE: ISSUE #2 (R4) Live Online User Directory               -->
+    <!-- ----------------------------------------------------------------- -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <h3>Online Directory</h3>
+        <!-- Live badge updated whenever 'user_list_update' is received -->
         <span id="user-count" class="badge">0 online</span>
       </div>
 
-      <ul id="user-list" class="user-list">
-        <!-- User items will be rendered here dynamically -->
-      </ul>
+      <!-- Active peers populated dynamically in app.js -->
+      <!-- Clicking any peer opens 1-on-1 private chat (Issue #3) -->
+      <ul id="user-list" class="user-list"></ul>
 
-      <!-- Footer: User status & Logout -->
+      <!-- Current User Profile & Session Disconnect Button -->
       <div class="sidebar-footer">
         <div class="user-info">
           <span class="user-avatar" id="my-avatar">?</span>
@@ -46,17 +56,52 @@
       </div>
     </aside>
 
-    <!-- Main Chat Window (Ready for Issue #3) -->
+    <!-- ----------------------------------------------------------------- -->
+    <!-- RIGHT PANE: ISSUE #3 (R6) Split-Pane Dedicated Chat Window        -->
+    <!-- ----------------------------------------------------------------- -->
     <main class="chat-main">
-      <div class="empty-state">
-        <p>Select a user or group to start chatting</p>
-        <small>Next Milestone: 1-on-1 Private Messaging (Issue #3)</small>
+      <!-- 1. EMPTY STATE: Displayed when no user/room is currently selected -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">💬</div>
+        <p>Select a user from the directory to start chatting</p>
+        <small>1-on-1 Private Messaging with Room Isolation (Issue #3)</small>
+      </div>
+
+      <!-- 2. ACTIVE CHAT ROOM: Displayed when a user is selected -->
+      <div id="active-chat" class="active-chat-container hidden">
+        <!-- R6: Chat Header displaying active partner info -->
+        <header class="chat-header">
+          <div class="chat-header-user">
+            <div class="avatar" id="chat-partner-avatar">?</div>
+            <div>
+              <h4 id="chat-partner-name">Username</h4>
+              <span class="status-indicator" id="chat-status">Direct Message • Online</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- R6: Auto-scrolling Message Feed (Incoming & Outgoing bubbles) -->
+        <div class="message-feed" id="message-feed"></div>
+
+        <!-- R6: Chat Input Bar to send messages via 'send_private_message' -->
+        <form id="message-form" class="chat-input-form">
+          <input
+            type="text"
+            id="message-input"
+            placeholder="Type a private message..."
+            autocomplete="off"
+            required
+          />
+          <button type="submit" id="send-btn">Send</button>
+        </form>
       </div>
     </main>
+
   </div>
 
-  <!-- Load Socket.IO automatically from the server -->
+  <!-- Load Socket.IO client library automatically served by Express server -->
   <script src="/socket.io/socket.io.js"></script>
+  <!-- Main client controller script -->
   <script src="app.js"></script>
 </body>
 </html>

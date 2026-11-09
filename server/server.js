@@ -22,6 +22,21 @@ app.use(express.static(path.join(__dirname, '../client')));
 // In-memory store: Map<socketId, username>
 const users = new Map();
 
+// Generate deterministic 1-on-1 room ID (e.g. "dm_alice_bob")
+function getPrivateRoomId(usernameA, usernameB){
+    return `dm_${[usernameA, usernameB].map(u => u.toLowerCase()).sort().join('_')}`;
+}
+
+// Find active socket.id by username
+function getSocketIdbyUsername(Username){
+    for(const [id,username] of users.entries()){
+        if(username.toLowerCase() == Username.toLowerCase()){
+            return id;
+        }
+    }
+    return null;
+}
+
 // Listen for incoming socket connections from clients
 io.on('connection',(socket)=>{
     console.log(`Clients connected: ${socket.id}`);
@@ -52,7 +67,55 @@ io.on('connection',(socket)=>{
         const userList = Array.from(users.values());
         io.emit('user_list_update', userList);
         console.log(`Registered: ${trimmed},Total Counts: ${users.size}`);
-    })
+    });
+
+    socket.on('start_private_group', ({targetUsername},callback)=>{
+        const username = users.get(socket.id);
+
+        if(!username){
+            return callback({succes: true, message: `Cannot find username: ${socket.username}`});
+        }
+
+        // Generate deterministic room ID
+        const roomId = getPrivateRoomId(username,targetUsername);
+
+        // Join both client sockets into this isolated room
+        socket.join(roomId);
+
+        const targetSocketId = getSocketIdbyUsername(targetUsername);
+        const targetSocket = io.sockets.sockets.get(targetSocketId);
+
+        if(targetSocket){
+            targetSocket.join(roomId);
+        }
+
+        console.log(`[Room Joined] Room: ${roomId} | Members: ${username} & ${targetUsername}`);
+
+        callback({
+            success: true,
+            roomId,
+            targetUsername
+        })
+    });
+
+    socket.on('send_private_message', ({ targetUsername, message }, callback)=>{
+        const sender = users.get(socket.id);
+        if(!sender) return;
+    
+        const roomId = getPrivateRoomId(sender,targetUsername);
+
+        console.log(`Private room ID: ${roomId}, Sender: ${socket.username}, Receiver: ${targetUsername}`);
+
+        // Emit with EVENT NAME as 1st argument, and PAYLOAD as 2nd argument
+        io.to(roomId).emit('receive_private_message',{
+            sender: sender,
+            receiver: targetUsername,
+            data: message,
+            timestamp: new Date().toLocaleTimeString()
+        });
+
+        callback?.({ success: true });
+    });
 
     socket.on('disconnect', () => {
         if(users.has(socket.id)){
