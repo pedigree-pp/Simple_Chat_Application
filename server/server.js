@@ -3,6 +3,7 @@ import {createServer} from 'http';
 import {Server} from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { group } from 'console';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,6 +182,32 @@ io.on('connection',(socket)=>{
         const groupList = getGroupList();
         
         io.emit('group_list_update', groupList);
+    });
+
+    socket.on('join_public_group', (groupName, callback)=>{
+        const username = users.get(socket.id);
+        let isInRoom = false;
+
+        const trimmed = groupName.trim();
+        const groupId = getPublicRoomId(groupName);
+        const groupDetail = groups.get(groupId);
+
+        if(!groupList || groupName !== groupDetail.name){
+            return callback({success: false, message: `Cannot join the group: ${groupName}`});
+        }
+
+        for(const [userJoin] of groupDetail.members){
+            if(userJoin.toLowerCase() === username.toLowerCase()){
+                isInRoom = true;
+                break;
+            }
+        }
+
+        if(isInRoom){
+            return callback({success: false, message: `User has already joined the room`});
+        }
+
+        socket.join()
     });
 
     socket.on('disconnect', () => {
