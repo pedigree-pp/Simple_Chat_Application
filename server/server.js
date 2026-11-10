@@ -3,7 +3,6 @@ import {createServer} from 'http';
 import {Server} from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { group } from 'console';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +45,16 @@ function getSocketIdbyUsername(Username){
     return null;
 }
 
+function getGroupList() {
+    return Array.from(groups.values()).map(g => ({
+        id: g.id,
+        name: g.name,
+        creator: g.creator,
+        memberCount: g.members.size,
+        members: Array.from(g.members)
+    }));
+}
+
 // Listen for incoming socket connections from clients
 io.on('connection',(socket)=>{
     console.log(`Clients connected: ${socket.id}`);
@@ -68,6 +77,7 @@ io.on('connection',(socket)=>{
 
         // Store user mapping
         users.set(socket.id,trimmed);
+        socket.username = trimmed;
 
         // Acknowledge success to the registering client
         callback({success: true, message: 'Create new user successfully'});
@@ -75,6 +85,10 @@ io.on('connection',(socket)=>{
         // Broadcast updated user list to ALL connected clients
         const userList = Array.from(users.values());
         io.emit('user_list_update', userList);
+
+        // R9: Send already existing groups to THIS new user
+        socket.emit('group_list_update', getGroupList());
+        
         console.log(`Registered: ${trimmed},Total Counts: ${users.size}`);
     });
 
@@ -82,7 +96,7 @@ io.on('connection',(socket)=>{
         const username = users.get(socket.id);
 
         if(!username){
-            return callback({succes: false, message: `Cannot find username: ${socket.username}`});
+            return callback({success: false, message: `Cannot find username: ${socket.username}`});
         }
 
         // Generate deterministic room ID
@@ -164,13 +178,7 @@ io.on('connection',(socket)=>{
         callback({ success: true, roomId, groupName: groupName.trim() });
 
         // Send updated group list to everyone online!
-        const groupList = Array.from(groups.values()).map(g => ({
-            id: g.id,
-            name: g.name,
-            creator: g.creator,
-            memberCount: g.members.size,
-            members: Array.from(g.members)
-        }));
+        const groupList = getGroupList();
         
         io.emit('group_list_update', groupList);
     });
