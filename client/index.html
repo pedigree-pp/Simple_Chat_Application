@@ -33,7 +33,7 @@
   <div id="chat-dashboard" class="dashboard-container hidden">
 
     <!-- ----------------------------------------------------------------- -->
-    <!-- LEFT PANE: ISSUE #2 (R4) Live Online User Directory               -->
+    <!-- LEFT PANE: Directory (Users & Public Groups)                      -->
     <!-- ----------------------------------------------------------------- -->
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -46,6 +46,20 @@
       <!-- Clicking any peer opens 1-on-1 private chat (Issue #3) -->
       <ul id="user-list" class="user-list"></ul>
 
+      <!-- ============================================================= -->
+      <!-- ISSUE #4 (R8, R9): PUBLIC GROUP DIRECTORY SECTION             -->
+      <!-- ============================================================= -->
+      <div class="sidebar-section-divider"></div>
+      
+      <div class="sidebar-header">
+        <h3>Public Groups</h3>
+        <!-- R8: Button to trigger Group Creation modal/prompt -->
+        <button id="create-group-btn" class="btn-create-group" title="Create a new group chat">+ New</button>
+      </div>
+
+      <!-- R9: Public groups list populated dynamically with member counts & names -->
+      <ul id="group-list" class="group-list"></ul>
+
       <!-- Current User Profile & Session Disconnect Button -->
       <div class="sidebar-footer">
         <div class="user-info">
@@ -57,7 +71,7 @@
     </aside>
 
     <!-- ----------------------------------------------------------------- -->
-    <!-- RIGHT PANE: ISSUE #3 (R6) Split-Pane Dedicated Chat Window        -->
+    <!-- RIGHT PANE: Dedicated Chat Window                                 -->
     <!-- ----------------------------------------------------------------- -->
     <main class="chat-main">
       <!-- 1. EMPTY STATE: Displayed when no user/room is currently selected -->

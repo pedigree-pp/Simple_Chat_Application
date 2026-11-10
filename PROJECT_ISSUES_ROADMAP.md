@@ -20,9 +20,9 @@ Track your progress for the **Simple Chat Application** project.
   - [x] Dedicated chat room for 1-on-1 private messaging.
   - [x] Split-pane UI with active chat box and scrolling message window.
   - [x] Isolated direct text messages visible only to sender and receiver.
-- [ ] **Issue #4:** [Implement Group Chat Creation & Public Room Registry](https://github.com/pedigree-pp/SimpleChatApplication/issues/4)
-  - [ ] Create group chat (creator is initially sole member).
-  - [ ] Broadcast public group list with member names/counts.
+- [x] **Issue #4:** [Implement Group Chat Creation & Public Room Registry](https://github.com/pedigree-pp/SimpleChatApplication/issues/4)
+  - [x] Create group chat (creator is initially sole member).
+  - [x] Broadcast public group list with member names/counts.
 - [ ] **Issue #5:** [Implement Opt-in Group Join & Isolated Member Broadcasts](https://github.com/pedigree-pp/SimpleChatApplication/issues/5)
   - [ ] Manual opt-in join button (never auto-added by creator).
   - [ ] Broadcast messages strictly to group members.
