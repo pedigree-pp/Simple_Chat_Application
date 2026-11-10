@@ -35,7 +35,7 @@ const myUsernameEl = document.getElementById('my-username');
 const myAvatarEl = document.getElementById('my-avatar');
 const logoutBtn = document.getElementById('logout-btn');
 
-// Issue #4: Public Group Directory Elements
+// Issue #4 & #5: Public Group Directory Elements
 const groupListEl = document.getElementById('group-list');
 const createGroupBtn = document.getElementById('create-group-btn');
 
@@ -144,7 +144,7 @@ createGroupBtn.addEventListener('click', () => {
 
 
 // ==============================================================================
-// ISSUE #4 (R9): PUBLIC GROUP DIRECTORY BROADCAST & RENDERING
+// ISSUE #4 (R9) & ISSUE #5 (R10): PUBLIC GROUP DIRECTORY & JOIN BUTTON
 // ==============================================================================
 socket.on('group_list_update', (groups) => {
   renderGroupList(groups);
@@ -159,6 +159,9 @@ function renderGroupList(groups) {
   }
 
   groups.forEach((g) => {
+    // Check if the currently logged-in user is already in this group's members
+    const isMember = g.members && g.members.some(m => m.toLowerCase() === currentUser?.toLowerCase());
+
     const li = document.createElement('li');
     li.className = 'group-item';
 
@@ -170,7 +173,28 @@ function renderGroupList(groups) {
       <div class="group-members-preview" title="${escapeHtml(g.members.join(', '))}">
         Members: ${escapeHtml(g.members.join(', '))}
       </div>
+      <div class="group-actions">
+        ${
+          isMember
+            ? '<span class="badge-joined">✓ Joined</span>'
+            : `<button class="btn-join-group" data-name="${escapeHtml(g.name)}">+ Join</button>`
+        }
+      </div>
     `;
+
+    // ISSUE #5 (R10): Voluntary Opt-in Join button handler
+    const joinBtn = li.querySelector('.btn-join-group');
+    if (joinBtn) {
+      joinBtn.addEventListener('click', () => {
+        socket.emit('join_public_group', g.name, (response) => {
+          if (response.success) {
+            console.log(`[Group Joined successfully]: ${g.name}`);
+          } else {
+            alert(`Could not join group: ${response.message}`);
+          }
+        });
+      });
+    }
 
     groupListEl.appendChild(li);
   });
@@ -238,10 +262,12 @@ messageForm.addEventListener('submit', (e) => {
 // ==============================================================================
 // ISSUE #3 (R7): RECEIVE MESSAGE & ISOLATED CHAT BUBBLE RENDERING
 // ==============================================================================
+// Server emits 'receive_private_message' strictly to the dedicated room
 socket.on('receive_private_message', (payload) => {
   const { sender, receiver, data, timestamp } = payload;
-  const messageText = data;
+  const messageText = data; // Payload from server carries message in .data
 
+  // Determine which peer this conversation belongs to
   const conversationPartner = (sender === currentUser) ? receiver : sender;
 
   // 1. Persist message in local in-memory history cache
@@ -274,6 +300,7 @@ function appendMessageBubble(sender, text, timestamp) {
   const isMe = sender === currentUser;
   const msgEl = document.createElement('div');
 
+  // R6: 'my-message' aligns right (Indigo), 'other-message' aligns left (Slate)
   msgEl.className = `message ${isMe ? 'my-message' : 'other-message'}`;
 
   msgEl.innerHTML = `
@@ -282,6 +309,8 @@ function appendMessageBubble(sender, text, timestamp) {
   `;
 
   messageFeed.appendChild(msgEl);
+
+  // Auto-scroll to latest message at the bottom
   messageFeed.scrollTop = messageFeed.scrollHeight;
 }
 
@@ -300,15 +329,18 @@ function escapeHtml(str) {
 // SESSION LOGOUT & CLEANUP
 // ==============================================================================
 logoutBtn.addEventListener('click', () => {
+  // Disconnect socket from server
   socket.disconnect();
-  socket.connect();
+  socket.connect(); // Establish fresh socket ready for next connection
 
+  // Reset all application state
   currentUser = null;
   activeTargetUser = null;
   chatHistories.clear();
   usernameInput.value = '';
   loginError.classList.add('hidden');
 
+  // Reset UI back to login screen
   activeChat.classList.add('hidden');
   emptyState.classList.remove('hidden');
   messageFeed.innerHTML = '';
