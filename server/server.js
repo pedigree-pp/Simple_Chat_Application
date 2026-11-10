@@ -192,11 +192,11 @@ io.on('connection',(socket)=>{
         const groupId = getPublicRoomId(groupName);
         const groupDetail = groups.get(groupId);
 
-        if(!groupList || groupName !== groupDetail.name){
-            return callback({success: false, message: `Cannot join the group: ${groupName}`});
+        if (!groupDetail) {
+            return callback({ success: false, message: `Group does not exist` });
         }
 
-        for(const [userJoin] of groupDetail.members){
+        for(const userJoin of groupDetail.members){
             if(userJoin.toLowerCase() === username.toLowerCase()){
                 isInRoom = true;
                 break;
@@ -207,7 +207,18 @@ io.on('connection',(socket)=>{
             return callback({success: false, message: `User has already joined the room`});
         }
 
-        socket.join()
+        groupDetail.members.add(username);
+
+        socket.join(groupId);
+
+        callback({
+            success: true,
+            roomId: groupId,
+            name: groupName
+        });
+
+        // Broadcast updated member count/list to ALL clients (R9)
+        io.emit('group_list_update', getGroupList());
     });
 
     socket.on('disconnect', () => {
