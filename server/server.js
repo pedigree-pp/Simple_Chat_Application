@@ -137,12 +137,12 @@ io.on('connection',(socket)=>{
             return callback({success: false, message: `Cannot find groupName`});
         }
 
-        const trimmed = groupName.trim().toLowerCase();
+        const trimmed = groupName.trim();
         const roomId = getPublicRoomId(groupName);
         
         let isGroupNameExisted = false;
         for (const [id, groupDetail] of groups.entries()) {
-            if (groupDetail.name.toLowerCase() === trimmed) {
+            if (groupDetail.name.toLowerCase() === trimmed.toLowerCase()) {
                 isGroupNameExisted = true;
                 break; // Stop immediately once found!
             }
@@ -151,9 +151,8 @@ io.on('connection',(socket)=>{
         if(isGroupNameExisted){
             return callback({success: false, message: `Groupname: ${groupName} is already existed.`});
         }
-
-        const members = set.from(username);
         
+        // Save group in memory
         groups.set(roomId, {
             id: roomId, 
             name: trimmed,
