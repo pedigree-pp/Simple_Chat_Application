@@ -3,6 +3,7 @@ import {createServer} from 'http';
 import {Server} from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { group } from 'console';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,9 +23,17 @@ app.use(express.static(path.join(__dirname, '../client')));
 // In-memory store: Map<socketId, username>
 const users = new Map();
 
+// Map<groupId, { name, creator, members: Set<username> }>
+const groups = new Map();
+
 // Generate deterministic 1-on-1 room ID (e.g. "dm_alice_bob")
 function getPrivateRoomId(usernameA, usernameB){
     return `dm_${[usernameA, usernameB].map(u => u.toLowerCase()).sort().join('_')}`;
+}
+
+// Generate many-on-many room ID (e.g. "group_id")
+function getPublicRoomId(groupName){
+    return `group_${groupName.trim().toLowerCase()}`;
 }
 
 // Find active socket.id by username
@@ -73,7 +82,7 @@ io.on('connection',(socket)=>{
         const username = users.get(socket.id);
 
         if(!username){
-            return callback({succes: true, message: `Cannot find username: ${socket.username}`});
+            return callback({succes: false, message: `Cannot find username: ${socket.username}`});
         }
 
         // Generate deterministic room ID
@@ -115,6 +124,56 @@ io.on('connection',(socket)=>{
         });
 
         callback?.({ success: true });
+    });
+
+    socket.on('start_public_group', ({groupName},callback)=>{
+        const username = users.get(socket.id);
+        
+        if(!username){
+            return callback({success: false, message: `Cannot find username: ${socket.username}`});
+        }
+
+        if(!groupName){
+            return callback({success: false, message: `Cannot find groupName`});
+        }
+
+        const trimmed = groupName.trim().toLowerCase();
+        const roomId = getPublicRoomId(groupName);
+        
+        let isGroupNameExisted = false;
+        for (const [id, groupDetail] of groups.entries()) {
+            if (groupDetail.name.toLowerCase() === trimmed) {
+                isGroupNameExisted = true;
+                break; // Stop immediately once found!
+            }
+        }
+
+        if(isGroupNameExisted){
+            return callback({success: false, message: `Groupname: ${groupName} is already existed.`});
+        }
+
+        const members = set.from(username);
+        
+        groups.set(roomId, {
+            id: roomId, 
+            name: trimmed,
+            creator: username, 
+            members: new Set([username])
+        });
+
+        socket.join(roomId);
+        callback({ success: true, roomId, groupName: groupName.trim() });
+
+        // Send updated group list to everyone online!
+        const groupList = Array.from(groups.values()).map(g => ({
+            id: g.id,
+            name: g.name,
+            creator: g.creator,
+            memberCount: g.members.size,
+            members: Array.from(g.members)
+        }));
+        
+        io.emit('group_list_update', groupList);
     });
 
     socket.on('disconnect', () => {
