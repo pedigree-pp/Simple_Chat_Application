@@ -35,6 +35,10 @@ const myUsernameEl = document.getElementById('my-username');
 const myAvatarEl = document.getElementById('my-avatar');
 const logoutBtn = document.getElementById('logout-btn');
 
+// Issue #4: Public Group Directory Elements
+const groupListEl = document.getElementById('group-list');
+const createGroupBtn = document.getElementById('create-group-btn');
+
 // Issue #3 (R6): Dedicated Chat Pane Elements
 const emptyState = document.getElementById('empty-state');
 const activeChat = document.getElementById('active-chat');
@@ -122,6 +126,58 @@ function renderUserList(users) {
 
 
 // ==============================================================================
+// ISSUE #4 (R8): GROUP CHAT CREATION
+// ==============================================================================
+createGroupBtn.addEventListener('click', () => {
+  const groupName = prompt('Enter a unique name for your new group chat:');
+  if (!groupName || !groupName.trim()) return;
+
+  // Emit 'start_public_group' event to server
+  socket.emit('start_public_group', { groupName: groupName.trim() }, (response) => {
+    if (!response.success) {
+      alert(`Error creating group: ${response.message}`);
+    } else {
+      console.log(`[Group Created]: ${response.groupName}`);
+    }
+  });
+});
+
+
+// ==============================================================================
+// ISSUE #4 (R9): PUBLIC GROUP DIRECTORY BROADCAST & RENDERING
+// ==============================================================================
+socket.on('group_list_update', (groups) => {
+  renderGroupList(groups);
+});
+
+function renderGroupList(groups) {
+  groupListEl.innerHTML = '';
+
+  if (!groups || groups.length === 0) {
+    groupListEl.innerHTML = '<li class="empty-hint" style="color:#64748b; font-size:0.8rem; padding:0.5rem;">No groups yet</li>';
+    return;
+  }
+
+  groups.forEach((g) => {
+    const li = document.createElement('li');
+    li.className = 'group-item';
+
+    li.innerHTML = `
+      <div class="group-item-header">
+        <span class="group-item-name">👥 ${escapeHtml(g.name)}</span>
+        <span class="group-member-count">${g.memberCount} ${g.memberCount === 1 ? 'member' : 'members'}</span>
+      </div>
+      <div class="group-members-preview" title="${escapeHtml(g.members.join(', '))}">
+        Members: ${escapeHtml(g.members.join(', '))}
+      </div>
+    `;
+
+    groupListEl.appendChild(li);
+  });
+}
+
+
+// ==============================================================================
 // ISSUE #3 (R5, R6): JOIN DEDICATED PRIVATE ROOM & SWITCH WORKSPACE
 // ==============================================================================
 function openPrivateChat(targetUsername) {
@@ -148,7 +204,6 @@ function openPrivateChat(targetUsername) {
   messageInput.focus();
 
   // R5: Inform server to join both sockets into the dedicated 1-on-1 room (e.g. 'dm_alice_bob')
-  // We emit 'start_private_group' (server handler name)
   socket.emit('start_private_group', { targetUsername }, (response) => {
     console.log('[Room Joined Response]:', response);
   });
@@ -183,12 +238,10 @@ messageForm.addEventListener('submit', (e) => {
 // ==============================================================================
 // ISSUE #3 (R7): RECEIVE MESSAGE & ISOLATED CHAT BUBBLE RENDERING
 // ==============================================================================
-// Server emits 'receive_private_message' strictly to the dedicated room
 socket.on('receive_private_message', (payload) => {
   const { sender, receiver, data, timestamp } = payload;
-  const messageText = data; // Payload from server carries message in .data
+  const messageText = data;
 
-  // Determine which peer this conversation belongs to
   const conversationPartner = (sender === currentUser) ? receiver : sender;
 
   // 1. Persist message in local in-memory history cache
@@ -221,7 +274,6 @@ function appendMessageBubble(sender, text, timestamp) {
   const isMe = sender === currentUser;
   const msgEl = document.createElement('div');
 
-  // R6: 'my-message' aligns right (Indigo), 'other-message' aligns left (Slate)
   msgEl.className = `message ${isMe ? 'my-message' : 'other-message'}`;
 
   msgEl.innerHTML = `
@@ -230,8 +282,6 @@ function appendMessageBubble(sender, text, timestamp) {
   `;
 
   messageFeed.appendChild(msgEl);
-
-  // Auto-scroll to latest message at the bottom
   messageFeed.scrollTop = messageFeed.scrollHeight;
 }
 
@@ -250,21 +300,19 @@ function escapeHtml(str) {
 // SESSION LOGOUT & CLEANUP
 // ==============================================================================
 logoutBtn.addEventListener('click', () => {
-  // Disconnect socket from server
   socket.disconnect();
-  socket.connect(); // Establish fresh socket ready for next connection
+  socket.connect();
 
-  // Reset all application state
   currentUser = null;
   activeTargetUser = null;
   chatHistories.clear();
   usernameInput.value = '';
   loginError.classList.add('hidden');
 
-  // Reset UI back to login screen
   activeChat.classList.add('hidden');
   emptyState.classList.remove('hidden');
   messageFeed.innerHTML = '';
+  groupListEl.innerHTML = '';
   chatDashboard.classList.add('hidden');
   loginScreen.classList.remove('hidden');
 });

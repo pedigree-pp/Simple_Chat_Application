@@ -22,9 +22,17 @@ app.use(express.static(path.join(__dirname, '../client')));
 // In-memory store: Map<socketId, username>
 const users = new Map();
 
+// Map<groupId, { name, creator, members: Set<username> }>
+const groups = new Map();
+
 // Generate deterministic 1-on-1 room ID (e.g. "dm_alice_bob")
 function getPrivateRoomId(usernameA, usernameB){
     return `dm_${[usernameA, usernameB].map(u => u.toLowerCase()).sort().join('_')}`;
+}
+
+// Generate many-on-many room ID (e.g. "group_id")
+function getPublicRoomId(groupName){
+    return `group_${groupName.trim().toLowerCase()}`;
 }
 
 // Find active socket.id by username
@@ -35,6 +43,16 @@ function getSocketIdbyUsername(Username){
         }
     }
     return null;
+}
+
+function getGroupList() {
+    return Array.from(groups.values()).map(g => ({
+        id: g.id,
+        name: g.name,
+        creator: g.creator,
+        memberCount: g.members.size,
+        members: Array.from(g.members)
+    }));
 }
 
 // Listen for incoming socket connections from clients
@@ -59,6 +77,7 @@ io.on('connection',(socket)=>{
 
         // Store user mapping
         users.set(socket.id,trimmed);
+        socket.username = trimmed;
 
         // Acknowledge success to the registering client
         callback({success: true, message: 'Create new user successfully'});
@@ -66,6 +85,10 @@ io.on('connection',(socket)=>{
         // Broadcast updated user list to ALL connected clients
         const userList = Array.from(users.values());
         io.emit('user_list_update', userList);
+
+        // R9: Send already existing groups to THIS new user
+        socket.emit('group_list_update', getGroupList());
+        
         console.log(`Registered: ${trimmed},Total Counts: ${users.size}`);
     });
 
@@ -73,7 +96,7 @@ io.on('connection',(socket)=>{
         const username = users.get(socket.id);
 
         if(!username){
-            return callback({succes: true, message: `Cannot find username: ${socket.username}`});
+            return callback({success: false, message: `Cannot find username: ${socket.username}`});
         }
 
         // Generate deterministic room ID
@@ -115,6 +138,49 @@ io.on('connection',(socket)=>{
         });
 
         callback?.({ success: true });
+    });
+
+    socket.on('start_public_group', ({groupName},callback)=>{
+        const username = users.get(socket.id);
+        
+        if(!username){
+            return callback({success: false, message: `Cannot find username: ${socket.username}`});
+        }
+
+        if(!groupName){
+            return callback({success: false, message: `Cannot find groupName`});
+        }
+
+        const trimmed = groupName.trim();
+        const roomId = getPublicRoomId(groupName);
+        
+        let isGroupNameExisted = false;
+        for (const [id, groupDetail] of groups.entries()) {
+            if (groupDetail.name.toLowerCase() === trimmed.toLowerCase()) {
+                isGroupNameExisted = true;
+                break; // Stop immediately once found!
+            }
+        }
+
+        if(isGroupNameExisted){
+            return callback({success: false, message: `Groupname: ${groupName} is already existed.`});
+        }
+        
+        // Save group in memory
+        groups.set(roomId, {
+            id: roomId, 
+            name: trimmed,
+            creator: username, 
+            members: new Set([username])
+        });
+
+        socket.join(roomId);
+        callback({ success: true, roomId, groupName: groupName.trim() });
+
+        // Send updated group list to everyone online!
+        const groupList = getGroupList();
+        
+        io.emit('group_list_update', groupList);
     });
 
     socket.on('disconnect', () => {
