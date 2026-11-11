@@ -3,6 +3,7 @@ import {createServer} from 'http';
 import {Server} from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { group } from 'console';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,6 +182,79 @@ io.on('connection',(socket)=>{
         const groupList = getGroupList();
         
         io.emit('group_list_update', groupList);
+    });
+
+    socket.on('join_public_group', (groupName, callback)=>{
+        const username = users.get(socket.id);
+        let isInRoom = false;
+
+        const trimmed = groupName.trim();
+        const groupId = getPublicRoomId(groupName);
+        const groupDetail = groups.get(groupId);
+
+        if (!groupDetail) {
+            return callback({ success: false, message: `Group does not exist` });
+        }
+
+        for(const userJoin of groupDetail.members){
+            if(userJoin.toLowerCase() === username.toLowerCase()){
+                isInRoom = true;
+                break;
+            }
+        }
+
+        if(isInRoom){
+            return callback({success: false, message: `User has already joined the room`});
+        }
+
+        groupDetail.members.add(username);
+
+        socket.join(groupId);
+
+        callback({
+            success: true,
+            roomId: groupId,
+            name: groupName
+        });
+
+        // Broadcast updated member count/list to ALL clients (R9)
+        io.emit('group_list_update', getGroupList());
+    });
+
+    socket.on('send_group_message', ({message, groupName}, callback)=>{
+        const username = users.get(socket.id);
+
+        if(!username){
+            return callback({success: false, message: `Username does not exist` });
+        };
+
+        if(!message){
+             return callback({success: false, message: `Message not found` });
+        }
+        
+        // Get the group directly by its ID (No loop needed!)
+        const roomId = getPublicRoomId(groupName);
+        const groupDetail = groups.get(roomId);
+
+        // Check if group exists
+        if (!groupDetail) {
+            return callback?.({ success: false, message: `Group "${groupName}" does not exist` });
+        }
+
+        // R11 Check: Is the sender actually a member of THIS group?
+        if (!groupDetail.members.has(username)) {
+            return callback?.({ success: false, message: 'You must join this group first!' });
+        }
+
+        io.to(roomId).emit('receive_group_message', {
+            sender: username,
+            groupName: groupDetail.name,
+            data: message,
+            timestamp: new Date().toLocaleTimeString()
+        });
+
+        // Acknowledge success to the sender
+        callback?.({ success: true });
     });
 
     socket.on('disconnect', () => {

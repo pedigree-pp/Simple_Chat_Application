@@ -438,3 +438,52 @@ button:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* --- ISSUE #5: GROUP JOIN & MESSAGING STYLING --- */
+.group-item.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.group-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.btn-join-group {
+  width: auto;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-join-group:hover {
+  background: #059669;
+}
+
+.badge-joined {
+  font-size: 0.7rem;
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.sender-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  margin-bottom: 0.25rem;
+  display: block;
+}

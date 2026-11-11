@@ -11,8 +11,9 @@ const socket = io();
 // ------------------------------------------------------------------------------
 let currentUser = null;        // Authenticated username of this client session
 let activeTargetUser = null;   // Active 1-on-1 chat partner currently opened
+let activeGroup = null;        // Active group chat currently opened: { name }
 
-// In-Memory Chat History Cache: Map<partnerUsername, Array<MessageObject>>
+// In-Memory Chat History Cache: Map<conversationKey, Array<MessageObject>>
 // Keeps messages persisted across switching between different chat rooms
 const chatHistories = new Map();
 
@@ -35,7 +36,7 @@ const myUsernameEl = document.getElementById('my-username');
 const myAvatarEl = document.getElementById('my-avatar');
 const logoutBtn = document.getElementById('logout-btn');
 
-// Issue #4: Public Group Directory Elements
+// Issue #4 & #5: Public Group Directory Elements
 const groupListEl = document.getElementById('group-list');
 const createGroupBtn = document.getElementById('create-group-btn');
 
@@ -138,13 +139,14 @@ createGroupBtn.addEventListener('click', () => {
       alert(`Error creating group: ${response.message}`);
     } else {
       console.log(`[Group Created]: ${response.groupName}`);
+      openGroupChat({ name: response.groupName });
     }
   });
 });
 
 
 // ==============================================================================
-// ISSUE #4 (R9): PUBLIC GROUP DIRECTORY BROADCAST & RENDERING
+// ISSUE #4 (R9) & ISSUE #5 (R10): PUBLIC GROUP DIRECTORY & JOIN BUTTON
 // ==============================================================================
 socket.on('group_list_update', (groups) => {
   renderGroupList(groups);
@@ -159,8 +161,13 @@ function renderGroupList(groups) {
   }
 
   groups.forEach((g) => {
+    // Check if the currently logged-in user is already in this group's members
+    const isMember = g.members && g.members.some(m => m.toLowerCase() === currentUser?.toLowerCase());
+    const isCurrentlyActive = activeGroup && activeGroup.name === g.name;
+
     const li = document.createElement('li');
-    li.className = 'group-item';
+    li.className = `group-item ${isCurrentlyActive ? 'active' : ''}`;
+    li.dataset.name = g.name;
 
     li.innerHTML = `
       <div class="group-item-header">
@@ -170,7 +177,38 @@ function renderGroupList(groups) {
       <div class="group-members-preview" title="${escapeHtml(g.members.join(', '))}">
         Members: ${escapeHtml(g.members.join(', '))}
       </div>
+      <div class="group-actions">
+        ${
+          isMember
+            ? '<span class="badge-joined">✓ Joined</span>'
+            : `<button class="btn-join-group" data-name="${escapeHtml(g.name)}">+ Join</button>`
+        }
+      </div>
     `;
+
+    // ISSUE #5: If already joined, clicking group card opens the group chat room
+    if (isMember) {
+      li.style.cursor = 'pointer';
+      li.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        openGroupChat(g);
+      });
+    }
+
+    // ISSUE #5 (R10): Voluntary Opt-in Join button handler
+    const joinBtn = li.querySelector('.btn-join-group');
+    if (joinBtn) {
+      joinBtn.addEventListener('click', () => {
+        socket.emit('join_public_group', g.name, (response) => {
+          if (response.success) {
+            console.log(`[Group Joined successfully]: ${g.name}`);
+            openGroupChat(g);
+          } else {
+            alert(`Could not join group: ${response.message}`);
+          }
+        });
+      });
+    }
 
     groupListEl.appendChild(li);
   });
@@ -182,6 +220,7 @@ function renderGroupList(groups) {
 // ==============================================================================
 function openPrivateChat(targetUsername) {
   activeTargetUser = targetUsername;
+  activeGroup = null; // Clear active group
 
   // R6: Switch right-hand pane from Empty Placeholder to Active Chat Room
   emptyState.classList.add('hidden');
@@ -196,11 +235,13 @@ function openPrivateChat(targetUsername) {
     const isPartner = el.querySelector('span')?.textContent?.startsWith(targetUsername);
     el.classList.toggle('active', !!isPartner);
   });
+  document.querySelectorAll('.group-item').forEach((el) => el.classList.remove('active'));
 
   // Render previous conversation history from cache (if any exists)
   renderMessagesForActiveChat();
 
   // Focus message input box ready for typing
+  messageInput.placeholder = `Type a private message to ${targetUsername}...`;
   messageInput.focus();
 
   // R5: Inform server to join both sockets into the dedicated 1-on-1 room (e.g. 'dm_alice_bob')
@@ -211,23 +252,65 @@ function openPrivateChat(targetUsername) {
 
 
 // ==============================================================================
-// ISSUE #3 (R6, R7): SEND DIRECT MESSAGE WITH ROOM ROUTING
+// ISSUE #5 (R11): OPEN DEDICATED GROUP CHAT ROOM
+// ==============================================================================
+function openGroupChat(group) {
+  activeGroup = group;
+  activeTargetUser = null; // Clear private partner
+
+  // Switch right-side pane from Empty State to Active Chat
+  emptyState.classList.add('hidden');
+  activeChat.classList.remove('hidden');
+
+  // Set header to show group info
+  chatPartnerName.textContent = group.name;
+  chatPartnerAvatar.textContent = '👥';
+  messageInput.placeholder = `Message #${group.name}...`;
+
+  // Highlight this group card in the sidebar
+  document.querySelectorAll('.group-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.name === group.name);
+  });
+  document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+
+  // Render previous messages for this group from cache
+  renderMessagesForActiveChat();
+  messageInput.focus();
+}
+
+
+// ==============================================================================
+// ISSUE #3 (R6, R7) & ISSUE #5 (R11): SEND MESSAGE (PRIVATE OR GROUP)
 // ==============================================================================
 messageForm.addEventListener('submit', (e) => {
   e.preventDefault();
 
   const text = messageInput.value.trim();
-  if (!text || !activeTargetUser) return;
+  if (!text) return;
 
-  // R7: Emit message to server for isolated room-based delivery
-  socket.emit('send_private_message', {
-    targetUsername: activeTargetUser,
-    message: text
-  }, (ack) => {
-    if (ack?.success) {
-      console.log(`[Message Delivered to Server for ${activeTargetUser}]`);
-    }
-  });
+  if (activeTargetUser) {
+    // R7: 1-on-1 Private Message
+    socket.emit('send_private_message', {
+      targetUsername: activeTargetUser,
+      message: text
+    }, (ack) => {
+      if (ack?.success) {
+        console.log(`[Message Delivered to Server for ${activeTargetUser}]`);
+      }
+    });
+  } else if (activeGroup) {
+    // R11: Group Message
+    socket.emit('send_group_message', {
+      groupName: activeGroup.name,
+      message: text
+    }, (ack) => {
+      if (ack?.success) {
+        console.log(`[Group Message Delivered to Server for ${activeGroup.name}]`);
+      } else {
+        alert(ack?.message || 'Failed to send group message.');
+      }
+    });
+  }
 
   // Clear input box and maintain focus
   messageInput.value = '';
@@ -236,12 +319,13 @@ messageForm.addEventListener('submit', (e) => {
 
 
 // ==============================================================================
-// ISSUE #3 (R7): RECEIVE MESSAGE & ISOLATED CHAT BUBBLE RENDERING
+// ISSUE #3 (R7): RECEIVE PRIVATE MESSAGE & ISOLATED CHAT BUBBLE RENDERING
 // ==============================================================================
 socket.on('receive_private_message', (payload) => {
   const { sender, receiver, data, timestamp } = payload;
-  const messageText = data;
+  const messageText = data; // Payload from server carries message in .data
 
+  // Determine which peer this conversation belongs to
   const conversationPartner = (sender === currentUser) ? receiver : sender;
 
   // 1. Persist message in local in-memory history cache
@@ -251,37 +335,80 @@ socket.on('receive_private_message', (payload) => {
   chatHistories.get(conversationPartner).push({
     sender,
     text: messageText,
-    timestamp: timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    timestamp: timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    isGroup: false
   });
 
   // 2. If the user currently has this conversation open, append bubble immediately
   if (conversationPartner === activeTargetUser) {
-    appendMessageBubble(sender, messageText, timestamp);
+    appendMessageBubble(sender, messageText, timestamp, false);
   }
 });
+
+
+// ==============================================================================
+// ISSUE #5 (R11): RECEIVE GROUP MESSAGE & ISOLATED CHAT BUBBLE RENDERING
+// ==============================================================================
+socket.on('receive_group_message', (payload) => {
+  const { sender, data, timestamp, groupName } = payload;
+  const targetKey = groupName || activeGroup?.name;
+
+  if (!targetKey) return;
+
+  // 1. Persist message in local in-memory history cache
+  if (!chatHistories.has(targetKey)) {
+    chatHistories.set(targetKey, []);
+  }
+  chatHistories.get(targetKey).push({
+    sender,
+    text: data,
+    timestamp: timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    isGroup: true
+  });
+
+  // 2. If the user currently has this group open, append bubble immediately
+  if (activeGroup && activeGroup.name === targetKey) {
+    appendMessageBubble(sender, data, timestamp, true);
+  }
+});
+
 
 // Render all cached messages when switching to a room
 function renderMessagesForActiveChat() {
   messageFeed.innerHTML = '';
-  const history = chatHistories.get(activeTargetUser) || [];
+  const currentKey = activeTargetUser || activeGroup?.name;
+  if (!currentKey) return;
+
+  const history = chatHistories.get(currentKey) || [];
+  const isGroup = !!activeGroup;
+
   history.forEach((msg) => {
-    appendMessageBubble(msg.sender, msg.text, msg.timestamp);
+    appendMessageBubble(msg.sender, msg.text, msg.timestamp, isGroup);
   });
 }
 
 // Helper: Injects a styled message bubble into the scrolling feed
-function appendMessageBubble(sender, text, timestamp) {
+function appendMessageBubble(sender, text, timestamp, isGroup = false) {
   const isMe = sender === currentUser;
   const msgEl = document.createElement('div');
 
+  // R6: 'my-message' aligns right (Indigo), 'other-message' aligns left (Slate)
   msgEl.className = `message ${isMe ? 'my-message' : 'other-message'}`;
 
+  // For group messages from other members, display sender tag
+  const senderHeader = (isGroup && !isMe) ? `<span class="sender-tag">${escapeHtml(sender)}</span>` : '';
+
   msgEl.innerHTML = `
-    <div class="bubble">${escapeHtml(text)}</div>
+    <div class="bubble">
+      ${senderHeader}
+      <div>${escapeHtml(text)}</div>
+    </div>
     <span class="message-meta">${timestamp}</span>
   `;
 
   messageFeed.appendChild(msgEl);
+
+  // Auto-scroll to latest message at the bottom
   messageFeed.scrollTop = messageFeed.scrollHeight;
 }
 
@@ -300,15 +427,19 @@ function escapeHtml(str) {
 // SESSION LOGOUT & CLEANUP
 // ==============================================================================
 logoutBtn.addEventListener('click', () => {
+  // Disconnect socket from server
   socket.disconnect();
-  socket.connect();
+  socket.connect(); // Establish fresh socket ready for next connection
 
+  // Reset all application state
   currentUser = null;
   activeTargetUser = null;
+  activeGroup = null;
   chatHistories.clear();
   usernameInput.value = '';
   loginError.classList.add('hidden');
 
+  // Reset UI back to login screen
   activeChat.classList.add('hidden');
   emptyState.classList.remove('hidden');
   messageFeed.innerHTML = '';
