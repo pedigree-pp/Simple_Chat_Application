@@ -23,9 +23,9 @@ Track your progress for the **Simple Chat Application** project.
 - [x] **Issue #4:** [Implement Group Chat Creation & Public Room Registry](https://github.com/pedigree-pp/SimpleChatApplication/issues/4)
   - [x] Create group chat (creator is initially sole member).
   - [x] Broadcast public group list with member names/counts.
-- [ ] **Issue #5:** [Implement Opt-in Group Join & Isolated Member Broadcasts](https://github.com/pedigree-pp/SimpleChatApplication/issues/5)
-  - [ ] Manual opt-in join button (never auto-added by creator).
-  - [ ] Broadcast messages strictly to group members.
+- [x] **Issue #5:** [Implement Opt-in Group Join & Isolated Member Broadcasts](https://github.com/pedigree-pp/SimpleChatApplication/issues/5)
+  - [x] Manual opt-in join button (never auto-added by creator).
+  - [x] Broadcast messages strictly to group members.
 
 ---
 
