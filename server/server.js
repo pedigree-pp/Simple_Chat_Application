@@ -153,13 +153,14 @@ io.on('connection',(socket)=>{
 
             try{
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
+                    model: 'gemini-3.5-flash-lite',
                     contents: prompt
                 });
 
                 io.to(roomId).emit('receive_private_message',{
                     sender: "Gemini AI",
                     receiver: targetUsername,
+                    promptSender: sender,
                     data: response.text,
                     timestamp: new Date().toLocaleTimeString()
                 });
@@ -292,7 +293,7 @@ io.on('connection',(socket)=>{
 
             try{
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
+                    model: 'gemini-3.5-flash-lite',
                     contents: prompt
                 });
 
