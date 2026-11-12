@@ -1,12 +1,18 @@
 import express from 'express';
-import {createServer} from 'http';
-import {Server} from 'socket.io';
+import { createServer} from 'http';
+import { Server} from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { group } from 'console';
+import { GoogleGenAI } from '@google/genai';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const app = express();
 const httpServer = createServer(app);
@@ -122,7 +128,7 @@ io.on('connection',(socket)=>{
         })
     });
 
-    socket.on('send_private_message', ({ targetUsername, message }, callback)=>{
+    socket.on('send_private_message', async ({ targetUsername, message }, callback)=>{
         const sender = users.get(socket.id);
         if(!sender) return;
     
@@ -139,6 +145,28 @@ io.on('connection',(socket)=>{
         });
 
         callback?.({ success: true });
+
+        // Check if message starts with  @ai
+        if(message.startsWith('@ai ')){
+            const prompt = message.slice(4).trim();
+            if(!prompt) return;
+
+            try{
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt
+                });
+
+                io.to(roomId).emit('receive_private_message',{
+                    sender: "Gemini AI",
+                    receiver: targetUsername,
+                    data: response.text,
+                    timestamp: new Date().toLocaleTimeString()
+                });
+            }catch(err){
+                console.error('Gemini API Error:', err);
+            }
+        }
     });
 
     socket.on('start_public_group', ({groupName},callback)=>{
@@ -221,8 +249,9 @@ io.on('connection',(socket)=>{
         io.emit('group_list_update', getGroupList());
     });
 
-    socket.on('send_group_message', ({message, groupName}, callback)=>{
+    socket.on('send_group_message', async ({message, groupName}, callback)=>{
         const username = users.get(socket.id);
+        const isAIPrompt = false;
 
         if(!username){
             return callback({success: false, message: `Username does not exist` });
@@ -246,15 +275,37 @@ io.on('connection',(socket)=>{
             return callback?.({ success: false, message: 'You must join this group first!' });
         }
 
-        io.to(roomId).emit('receive_group_message', {
+       // Emit with EVENT NAME as 1st argument, and PAYLOAD as 2nd argument
+        io.to(roomId).emit('receive_group_message',{
             sender: username,
             groupName: groupDetail.name,
             data: message,
             timestamp: new Date().toLocaleTimeString()
         });
 
-        // Acknowledge success to the sender
         callback?.({ success: true });
+
+        // Check if message starts with  @ai
+        if(message.startsWith('@ai ')){
+            const prompt = message.slice(4).trim();
+            if(!prompt) return;
+
+            try{
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt
+                });
+
+                io.to(roomId).emit('receive_group_message',{
+                    sender: "Gemini AI",
+                    groupName: groupDetail.name,
+                    data: response.text,
+                    timestamp: new Date().toLocaleTimeString()
+                });
+            }catch(err){
+                console.error('Gemini API Error:', err);
+            }
+        }
     });
 
     socket.on('disconnect', () => {
