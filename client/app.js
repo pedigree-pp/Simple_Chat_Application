@@ -322,13 +322,18 @@ messageForm.addEventListener('submit', (e) => {
 // ISSUE #3 (R7): RECEIVE PRIVATE MESSAGE & ISOLATED CHAT BUBBLE RENDERING
 // ==============================================================================
 socket.on('receive_private_message', (payload) => {
-  const { sender, receiver, data, timestamp } = payload;
+  const { sender, receiver, data, timestamp, promptSender } = payload;
   const messageText = data; // Payload from server carries message in .data
 
   // Determine which peer this conversation belongs to
-  const conversationPartner = (sender === currentUser) ? receiver : sender;
+  let conversationPartner;
+    if (sender === 'Gemini AI') {
+    conversationPartner = (currentUser === promptSender) ? receiver : promptSender;
+  } else {
+    conversationPartner = (sender === currentUser) ? receiver : sender;
+  }
 
-  // 1. Persist message in local in-memory history cache
+  // Persist message in local in-memory history cache
   if (!chatHistories.has(conversationPartner)) {
     chatHistories.set(conversationPartner, []);
   }
@@ -339,7 +344,7 @@ socket.on('receive_private_message', (payload) => {
     isGroup: false
   });
 
-  // 2. If the user currently has this conversation open, append bubble immediately
+  // If the user currently has this conversation open, append bubble immediately
   if (conversationPartner === activeTargetUser) {
     appendMessageBubble(sender, messageText, timestamp, false);
   }
@@ -391,12 +396,13 @@ function renderMessagesForActiveChat() {
 function appendMessageBubble(sender, text, timestamp, isGroup = false) {
   const isMe = sender === currentUser;
   const msgEl = document.createElement('div');
+  const isAI = sender === 'Gemini AI';
 
   // R6: 'my-message' aligns right (Indigo), 'other-message' aligns left (Slate)
   msgEl.className = `message ${isMe ? 'my-message' : 'other-message'}`;
 
   // For group messages from other members, display sender tag
-  const senderHeader = (isGroup && !isMe) ? `<span class="sender-tag">${escapeHtml(sender)}</span>` : '';
+  const senderHeader = ((isGroup || isAI) && !isMe) ? `<span class="sender-tag">${escapeHtml(sender)}</span>` : '';
 
   msgEl.innerHTML = `
     <div class="bubble">
