@@ -49,6 +49,12 @@ const messageFeed = document.getElementById('message-feed');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 
+// Issue #7: Typing Indicator DOM & State
+const typingIndicator = document.getElementById('typing-indicator');
+const typingText = document.getElementById('typing-text');
+let isTyping = false;
+let typingTimeout = null;
+
 
 // ==============================================================================
 // ISSUE #2 (R3): USERNAME REGISTRATION & ATOMIC VALIDATION
@@ -240,6 +246,13 @@ function openPrivateChat(targetUsername) {
   // Render previous conversation history from cache (if any exists)
   renderMessagesForActiveChat();
 
+  // Reset typing indicator display and local typing state
+  typingIndicator.classList.add('hidden');
+  if (isTyping) {
+    clearTimeout(typingTimeout);
+    stopTyping();
+  }
+
   // Focus message input box ready for typing
   messageInput.placeholder = `Type a private message to ${targetUsername}...`;
   messageInput.focus();
@@ -275,6 +288,14 @@ function openGroupChat(group) {
 
   // Render previous messages for this group from cache
   renderMessagesForActiveChat();
+
+  // Reset typing indicator display and local typing state
+  typingIndicator.classList.add('hidden');
+  if (isTyping) {
+    clearTimeout(typingTimeout);
+    stopTyping();
+  }
+
   messageInput.focus();
 }
 
@@ -315,6 +336,67 @@ messageForm.addEventListener('submit', (e) => {
   // Clear input box and maintain focus
   messageInput.value = '';
   messageInput.focus();
+
+  // Issue #7: Clear typing indicator immediately upon message send
+  clearTimeout(typingTimeout);
+  stopTyping();
+});
+
+
+// ==============================================================================
+// ISSUE #7: REAL-TIME TYPING INDICATORS & 1.5s DEBOUNCE
+// ==============================================================================
+function stopTyping() {
+  if (isTyping) {
+    isTyping = false;
+    socket.emit('typing_stop', {
+      targetUsername: activeTargetUser,
+      groupName: activeGroup?.name
+    });
+  }
+}
+
+// Detect keystrokes with 1.5s debounce
+messageInput.addEventListener('input', () => {
+  const text = messageInput.value;
+
+  // Clear typing state immediately if user deletes all text
+  if (text.length === 0) {
+    clearTimeout(typingTimeout);
+    stopTyping();
+    return;
+  }
+
+  // Emit typing_start once when typing begins
+  if (!isTyping) {
+    isTyping = true;
+    socket.emit('typing_start', {
+      targetUsername: activeTargetUser,
+      groupName: activeGroup?.name
+    });
+  }
+
+  // 1.5s Debounce before emitting typing_stop
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    stopTyping();
+  }, 1500);
+});
+
+// Socket listeners for incoming typing states from peers in active room
+socket.on('user_typing_start', ({ sender, targetUsername, groupName }) => {
+  if ((activeTargetUser && activeTargetUser === sender) || 
+      (activeGroup && activeGroup.name === groupName)) {
+    typingText.textContent = `${sender} is typing`;
+    typingIndicator.classList.remove('hidden');
+  }
+});
+
+socket.on('user_typing_stop', ({ sender, targetUsername, groupName }) => {
+  if ((activeTargetUser && activeTargetUser === sender) || 
+      (activeGroup && activeGroup.name === groupName)) {
+    typingIndicator.classList.add('hidden');
+  }
 });
 
 
