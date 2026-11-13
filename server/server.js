@@ -3,7 +3,6 @@ import { createServer} from 'http';
 import { Server} from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { group } from 'console';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
@@ -306,6 +305,32 @@ io.on('connection',(socket)=>{
             }catch(err){
                 console.error('Gemini API Error:', err);
             }
+        }
+    });
+
+    socket.on('typing_start', ({targetUsername, groupName})=>{
+        const sender = users.get(socket.id);
+        if(!sender) return;
+
+        if(targetUsername){
+            const roomId = getPrivateRoomId(sender, targetUsername);
+            socket.to(roomId).emit('user_typing_start', {sender, targetUsername});
+        }else if(groupName){
+            const roomId = getPublicRoomId(groupName);
+            socket.to(roomId).emit('user_typing_start', {sender, groupName});
+        }
+    });
+
+    socket.on('typing_stop', ({targetUsername, groupName})=>{
+        const sender = users.get(socket.id);
+        if(!sender) return;
+
+        if(targetUsername){
+            const roomId = getPrivateRoomId(sender, targetUsername);
+            socket.to(roomId).emit('user_typing_stop', {sender, targetUsername});
+        }else if(groupName){
+            const roomId = getPublicRoomId(groupName);
+            socket.to(roomId).emit('user_typing_stop', {sender, groupName});
         }
     });
 
